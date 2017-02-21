@@ -129,7 +129,7 @@ for (i in 1:nrow(links_info)) {
     `names<-`(c("FECHA", lista_senadores)) 
   voting_info <- data.frame(
     FECHA = lista_dates,
-    ASUNTO = a_text,
+    ASUNTO = votacion,
     HREF = paste0("http://www.senado.gob.mx/", a_href)
   )
   saveRDS(object = voting_results, file = paste0("source_rds/", codigo, "_RESULTS", ".RDS"))
