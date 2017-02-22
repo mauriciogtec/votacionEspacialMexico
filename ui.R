@@ -1,30 +1,68 @@
 
-# This is the user-interface definition of a Shiny web application.
-# You can find out more about building applications with Shiny here:
-#
-# http://shiny.rstudio.com
-#
+# USER INTERFACE 
 
 library(shiny)
+library(plotly)
+
+info_asistencia <- readRDS("info_asistencia.RDS")
+info_voting <- readRDS("info_voting_periods.RDS")
 
 shinyUI(fluidPage(
-
-  # Application title
-  titlePanel("Old Faithful Geyser Data"),
-
-  # Sidebar with a slider input for number of bins
+  
+  titlePanel("Senado Mexico"),
+  
   sidebarLayout(
+    # SIDEBAR PANEL ================================
     sidebarPanel(
-      sliderInput("bins",
-                  "Number of bins:",
-                  min = 1,
-                  max = 50,
-                  value = 30)
+      radioButtons(
+        inputId = "func",
+        label = "Function",
+        choices = c(
+          "VOTACION" = "vot",
+          "ASISTENCIA" = "asist",
+          "MULTIDIMENSIONAL SCALING" = "mds"
+        )
+      )  
     ),
-
-    # Show a plot of the generated distribution
+    
+    # PANEL PRINCIPAL ===============================
     mainPanel(
-      plotOutput("distPlot")
+      selectInput(
+        inputId = "period",
+        label = "Periodo y Legislatura",
+        choices = sort(info_voting$codigo, decreasing = TRUE)
+      ),
+      # ____VOTOS =============================
+      conditionalPanel(
+        condition = "input.func == 'vot'",
+        selectInput(
+          inputId = "voting_date",
+          label = "Fecha",
+          choices = NULL
+        ),
+        selectInput(
+          inputId = "voting_subject",
+          label = "Asunto",
+          choices = NULL,
+          selectize = FALSE
+        ),
+        textOutput("subject_full"),
+        plotlyOutput("voting_plot"),
+        br(),
+        tableOutput("voting_table")
+      ),
+      # ____ASISTENCIA =============================
+      conditionalPanel(
+        condition = "input.func == 'asist'",
+        selectInput(
+          inputId = "asistencia_period_date",
+          label = "fecha",
+          choices = NULL # las opciones se cambian reactivamente al escoger el periodo en server
+        ),
+        tableOutput("asistencia_data_table_summary"),
+        tableOutput("asistencia_data_table_full")
+      )
+      # ____MDS ======================================
     )
   )
 ))
