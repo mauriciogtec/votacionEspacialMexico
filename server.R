@@ -80,31 +80,32 @@ shinyServer(function(input, output, session) {
   
 
   info_inday <- reactive({
-
+    if(is.null(input$voting_subject)) return(NULL)
+    
     clean_and_order <- function(u) paste(sort(unlist(strsplit(gsub("[ ]+", " ", stringr::str_trim(u)), " "))), collapse = " ")
     
     find_partido <- function(x, today, asistencia) {
       temp <- asistencia %>%
-        filter(SENADOR_ORDERED == x) %>% 
-        select(SENADOR_ORDERED, PARTIDO) %>% 
+        filter(SENADOR_ORDERED == x) %>%
+        select(SENADOR_ORDERED, PARTIDO) %>%
         distinct()
       if (nrow(temp) > 1) warning(sprintf("Cambio de partido: %s", x))
       temp$PARTIDO[1]
     }
     
     VOTACION <- voting_results() %>%
-      filter(ASUNTO == input$voting_subject) %>% 
+      filter(ASUNTO == input$voting_subject) %>%
       .[ ,-(1:3)]
-     
+
     VOTACION <- data.frame(
       SENADOR = names(VOTACION)[],
       VOTACION = as.integer(VOTACION[1, ])
     )
     
-    asistencia <- asistencia() %>% 
-      mutate(SENADOR_ORDERED = sapply(SENADOR, clean_and_order)) 
+    asistencia <- asistencia() %>%
+      mutate(SENADOR_ORDERED = sapply(SENADOR, clean_and_order))
     VOTACION$PARTIDO <- sapply(VOTACION$SENADOR, function(x) find_partido(clean_and_order(x), input$voting_date, asistencia))
-    
+
     VOTACION
   })
   
@@ -115,6 +116,7 @@ shinyServer(function(input, output, session) {
   })
 
   output$voting_plot <- renderPlotly({
+    if (is.null(info_inday())) return(NULL)
     tabl <- info_inday()
     tabl$PARTIDO[is.na(tabl$VOTACION)] <- "(REP. AUSENTES)"
     tabl <- table(tabl$PARTIDO) 
