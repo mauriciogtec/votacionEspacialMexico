@@ -8,24 +8,6 @@ library(xts)
 
 options(stringsAsFactors = FALSE)
 
-# OBTENIENDO UNA FECHA PARTICULAR (PRUEBA)
-# senado <- read_html("http://www.senado.gob.mx/index.php?watch=36&sm=3&ano=1&tp=O&np=1&lg=63&gp=TOTAL&id=2353")
-# senado_summary <- senado %>% 
-#   html_nodes(".tableA tr td div") %>% 
-#   html_text()
-# date_long <- senado_text[1]
-# matter <- senado_text[2]
-# senado_tables <- senado %>% 
-#   html_nodes(".tableA.Pardo") %>% 
-#   html_table()
-# key <- c("PRO" = 1, "ABSTENCION" = 0, "EN CONTRA"=-1)
-# votes <- data.frame(senado_tables[[1]][ ,2:3], row.names = NULL) %>% 
-#   `names<-`(c("SENADOR", "VOTO")) %>% 
-#   mutate(SENADOR = stri_trans_general(SENADOR, "Latin-ASCII")) %>% 
-#   mutate(SENADOR = gsub("Ma.", "Maria", SENADOR)) %>% 
-#   mutate(VOTO = key[VOTO])
-
-
 # 1. OBTENER INFORMACION DE TODOS LOS PERIODOS DISPONIBLES ========================
 links <- read_html("http://www.senado.gob.mx/index.php?watch=36") %>% 
   html_nodes(".tableA ul li a") 
@@ -205,6 +187,7 @@ for (i in 1:nrow(links_info)) {
   
   asistencia_data_list <- lapply(seq_along(a), function(j) {
     html <- read_html(paste0("http://www.senado.gob.mx/", a_href[j]))
+    print(j)
     asistencia_data <- html %>% 
       html_nodes(".tableA.Pardo") %>% 
       html_table(fill = TRUE) %>% 
@@ -213,11 +196,13 @@ for (i in 1:nrow(links_info)) {
       `names<-`(c("SENADOR", "PARTIDO", "ASISTENCIA_INFO")) %>% 
       mutate(SENADOR = toupper(stri_trans_general(SENADOR, "Latin-ASCII"))) %>% 
       mutate(SENADOR = gsub("MA\\.", "MARIA", SENADOR)) %>% 
+      mutate(ASISTENCIA_INFO = toupper(stri_trans_general(ASISTENCIA_INFO, "Latin-ASCII"))) %>% 
       mutate(ASISTENCIA = ASISTENCIA_INFO == "ASISTENCIA") %>% 
       data.frame(FECHA = fechas[j], .)
     asistencia_data
   })
   asistencia <- do.call("rbind", asistencia_data_list)
+  print(codigo)
   saveRDS(object = asistencia, file = paste0("source_rds/", codigo, "_ASISTENCIA", ".RDS"))
 }
 
