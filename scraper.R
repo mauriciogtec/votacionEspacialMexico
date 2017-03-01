@@ -31,6 +31,7 @@ links_info <- data.frame(
   href = links_href,
   stringsAsFactors = FALSE
 )
+saveRDS(links_info, "info_voting_periods.RDS")
 
 # 2. DESCARGAR LA INFORMACION DE TODOS LOS PERIODOS DISPONIBLES  ======================
 # (PRIMERO DESCARGAR PORQUE HAY ERRORES EN LA PAGINA Y NO CONVIENE SCRAPEAR ONLINE)
@@ -105,17 +106,22 @@ for (i in 1:nrow(links_info)) {
   })
   lista_senadores <- sort(lista_senadores)
   voting_results <- do.call("rbind", lapply(voting_data_list, function(temp) {
-    t(temp$VOTO[match(lista_senadores, temp$SENADOR)])
-  })) %>% 
-    data.frame(FECHA = lubridate::ymd(lista_dates), .) %>% 
-    `names<-`(c("FECHA", lista_senadores)) 
-  voting_info <- data.frame(
-    FECHA = lista_dates,
-    ASUNTO = votacion,
-    HREF = paste0("http://www.senado.gob.mx/", a_href)
-  )
+      t(temp$VOTO[match(lista_senadores, temp$SENADOR)])
+    })) %>% 
+    data.frame(
+      FECHA = lubridate::ymd(lista_dates), 
+      ASUNTO = votacion, 
+      HREF = paste0("http://www.senado.gob.mx/", a_href),
+      .
+    ) %>% 
+    `names<-`(c("FECHA", "ASUNTO", "HREF", lista_senadores)) 
+  # voting_info <- data.frame(
+  #   FECHA = lista_dates,
+  #   ASUNTO = votacion,
+  #   HREF = paste0("http://www.senado.gob.mx/", a_href)
+  # )
   saveRDS(object = voting_results, file = paste0("source_rds/", codigo, "_RESULTS", ".RDS"))
-  saveRDS(object = voting_info, file = paste0("source_rds/", codigo, "_INFO", ".RDS"))
+  # saveRDS(object = voting_info, file = paste0("source_rds/", codigo, "_INFO", ".RDS"))
 }
 
 
@@ -142,6 +148,7 @@ links_info <- data.frame(
   href = links_href,
   stringsAsFactors = FALSE
 )
+saveRDS(links_info, "info_asistencia.RDS")
 
 # 5. DESCARGAR LA INFORMACION DE TODOS LOS PERIODOS DISPONIBLES  ======================
 # (PRIMERO DESCARGAR PORQUE HAY ERRORES EN LA PAGINA Y NO CONVIENE SCRAPEAR ONLINE)
@@ -158,6 +165,7 @@ for (i in 1:nrow(links_info)) {
 
 # 6. CONSTRUIR LA BASE DE DATOS DE VOTACIONES POR CADA PERIODO LEGISLATIVO =======
 for (i in 1:nrow(links_info)) {
+  # if (i < 5) next # debugging
   texto <- links_info$texto[i]
   codigo <- links_info$codigo[i]
   html <- read_html(paste0("source_html/", codigo, ".html"))
@@ -182,10 +190,11 @@ for (i in 1:nrow(links_info)) {
     gsub("OCTUBRE", "10", .) %>% 
     gsub("NOVIEMBRE", "11", .) %>% 
     gsub("DICIEMBRE", "12", .) %>% 
-    gsub("[A-Z]|[ ]+", "" , .) %>% 
+    gsub("[A-Z]|[ ]+|\\.", "" , .) %>% 
     lubridate::dmy()
-  
+  # cat(sprintf("Codigo %s: %s\n", i, codigo)) # debugging
   asistencia_data_list <- lapply(seq_along(a), function(j) {
+    # cat(sprintf("--| link %s: %s\n", j, a_text[j])) # debugging
     html <- read_html(paste0("http://www.senado.gob.mx/", a_href[j]))
     print(j)
     asistencia_data <- html %>% 
@@ -204,6 +213,25 @@ for (i in 1:nrow(links_info)) {
   asistencia <- do.call("rbind", asistencia_data_list)
   print(codigo)
   saveRDS(object = asistencia, file = paste0("source_rds/", codigo, "_ASISTENCIA", ".RDS"))
+  lapply(function(d) na.omit(d))
+    ensamble <- try({
+      asistencia_data <- asistencia_data %>% 
+        do.call("rbind", .) %>% 
+        `names<-`(c("SENADOR", "PARTIDO", "ASISTENCIA_INFO")) %>% 
+        mutate(SENADOR = toupper(stri_trans_general(SENADOR, "Latin-ASCII"))) %>% 
+        mutate(SENADOR = gsub("MA\\.", "MARIA", SENADOR)) %>% 
+        mutate(ASISTENCIA = ASISTENCIA_INFO == "ASISTENCIA") %>% 
+        data.frame(FECHA = fechas[j], .)
+    }, silent = TRUE)
+    if (inherits(ensamble, "try-error")) {
+      warning(sprintf("Error at (codigo: %s, link: %s), skipped...", codigo, a_text[j]))
+      return(data.frame())
+    } else {
+      return(asistencia_data)
+    }
+  })
+  asistencia <- do.call("rbind", asistencia_data_list)
+  saveRDS(object = asistencia, file = paste0("source_rds/", codigo, ".RDS"))
 }
 
 
