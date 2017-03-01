@@ -67,6 +67,7 @@ for (i in 1:nrow(links_info)) {
   lista_senadores <- character(0)
   lista_dates <- character(0)
   voting_data_list <- lapply(seq_along(a), function(j) {
+    if (j <= 86) return(NULL)
     session <- html_session(paste0("http://www.senado.gob.mx/", a_href[j]))
     fecha_text <- session %>% 
       read_html() %>% 
@@ -98,9 +99,10 @@ for (i in 1:nrow(links_info)) {
       html_table()
     temp <- data.frame(voting_table[[1]][ ,2:3], row.names = NULL) %>% 
       `names<-`(c("SENADOR", "VOTO")) %>% 
-      mutate(SENADOR = toupper(stri_trans_general(SENADOR, "Latin-ASCII"))) %>% 
+      mutate(SENADOR = toupper(stri_trans_general(SENADOR, "Latin-ASCII"))) %>%
+      mutate(VOTO = toupper(stri_trans_general(VOTO, "Latin-ASCII"))) %>%
       mutate(SENADOR = gsub("MA\\.", "MARIA", SENADOR)) %>% 
-      mutate(VOTO = c("PRO" = 1, "ABSTENCION" = 0, "EN CONTRA"=-1)[VOTO])
+      mutate(VOTO = c("PRO" = 1, "ABSTENCION" = 0, "CONTRA"=-1)[VOTO])
     lista_senadores <<- unique(c(lista_senadores, temp$SENADOR))
     temp
   })
@@ -214,22 +216,21 @@ for (i in 1:nrow(links_info)) {
   print(codigo)
   saveRDS(object = asistencia, file = paste0("source_rds/", codigo, "_ASISTENCIA", ".RDS"))
   lapply(function(d) na.omit(d))
-    ensamble <- try({
-      asistencia_data <- asistencia_data %>% 
-        do.call("rbind", .) %>% 
-        `names<-`(c("SENADOR", "PARTIDO", "ASISTENCIA_INFO")) %>% 
-        mutate(SENADOR = toupper(stri_trans_general(SENADOR, "Latin-ASCII"))) %>% 
-        mutate(SENADOR = gsub("MA\\.", "MARIA", SENADOR)) %>% 
-        mutate(ASISTENCIA = ASISTENCIA_INFO == "ASISTENCIA") %>% 
-        data.frame(FECHA = fechas[j], .)
-    }, silent = TRUE)
-    if (inherits(ensamble, "try-error")) {
-      warning(sprintf("Error at (codigo: %s, link: %s), skipped...", codigo, a_text[j]))
-      return(data.frame())
-    } else {
-      return(asistencia_data)
-    }
-  })
+  ensamble <- try({
+    asistencia_data <- asistencia_data %>% 
+      do.call("rbind", .) %>% 
+      `names<-`(c("SENADOR", "PARTIDO", "ASISTENCIA_INFO")) %>% 
+      mutate(SENADOR = toupper(stri_trans_general(SENADOR, "Latin-ASCII"))) %>% 
+      mutate(SENADOR = gsub("MA\\.", "MARIA", SENADOR)) %>% 
+      mutate(ASISTENCIA = ASISTENCIA_INFO == "ASISTENCIA") %>% 
+      data.frame(FECHA = fechas[j], .)
+  }, silent = TRUE)
+  if (inherits(ensamble, "try-error")) {
+    warning(sprintf("Error at (codigo: %s, link: %s), skipped...", codigo, a_text[j]))
+    return(data.frame())
+  } else {
+    return(asistencia_data)
+  }
   asistencia <- do.call("rbind", asistencia_data_list)
   saveRDS(object = asistencia, file = paste0("source_rds/", codigo, ".RDS"))
 }
